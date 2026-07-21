@@ -24,7 +24,7 @@ Awwwards scores Design 40% / Usability 30% / Creativity 20% / Content 10%, with 
 
 - **The one-clock pattern** — THE mechanism behind GSAP+WebGL award sites: feed ScrollTrigger's 0–1 progress straight into a shader uniform (`scrub: true`). DOM and GPU share one clock; scrolling back runs everything in reverse. No separate sync layer.
 - **Line-mask reveals** — the universal "content enters" primitive: wrap each SplitText line in `overflow: hidden`, tween `yPercent` 110 → 0, `expo.out`, stagger ~0.09.
-- **Kinetic type without layout shift** — variable-font weight responding to the cursor normally pushes sibling glyphs and racks up CLS. Fix: split words+chars, absolutize positions first (SplitText `position: "absolute"`), lock the container height, then morph `wght` freely. Letters swell; nothing moves. Verified CLS 0.000.
+- **Kinetic type without layout shift** — variable-font weight responding to the cursor normally pushes sibling glyphs and racks up CLS. Fix: split words+chars, absolutize positions first (SplitText `position: "absolute"`), lock the container height, then morph `wght` freely. Letters swell; nothing moves. Verified CLS 0.000. On touch devices the finger is the cursor (touchmove on the headline, passive) — and since nobody knows a headline is touchable, run ONE weight-wave through the letters after the intro to teach it.
 - **Magnetic elements via `gsap.quickTo()`** — per-frame `gsap.to()` calls create tween garbage; quickTo exists exactly for this. One magnetic element per page, radius ~120px, pull ~0.3. Sitewide magnetism reads as noise by the second visit.
 - **Scrub reveals over time-based reveals** for anything below the fold — a fast scroller outruns entrance animations and sees blank sections; scrub-linked reveals can't be outrun, and they replay honestly in both directions.
 - **Lazy WebGL** — boot the context via IntersectionObserver near the viewport, render at ~0.7× device pixels and let CSS upscale, pause on tab-hidden and off-screen with ONE guarded rAF chain (an unguarded IO-enter callback quietly stacks parallel render loops). Ship a CSS poster behind the canvas so no-WebGL and reduced-motion get a composed frame, not a hole.
@@ -46,6 +46,16 @@ Film-grain overlay on everything · purple-to-blue gradients · custom cursor si
 6. The 404 gets the same care as the hero. Juries check.
 7. Real, finished words. Placeholder copy poisons every category, not just Content — and every number on the page should survive a click to its source.
 8. Accessibility is the cheapest way to outscore a winner: designed focus rings, a skip link, AA contrast even for small accent-colored labels, live regions that don't spam, aria-hidden on the decorative layer.
+
+## Hard-won Lighthouse lessons (from taking the proof page to 100/100/100/100 + Agentic 2/2)
+
+- **Fades on text are timing-dependent accessibility failures.** An audit (or a user) can catch a fading paragraph mid-animation at 3:1 contrast and fail it — Lighthouse did exactly that to us. Text either masks in (clip/transform, full contrast whenever visible) or simply stands. Reserve opacity animation for non-text.
+- **A broken accessibility tree now costs you twice.** `aria-label` is prohibited on `<p>` and other generic roles — SplitText's auto-aria adds it, so pass `aria: 'none'` on line splits. The same violation that dings Accessibility also fails Lighthouse's new Agentic Browsing check (`agent-accessibility-tree`) — AI agents navigate by that tree.
+- **The render-blocking chain is the whole mobile game.** Inline the CSS into the HTML (a full design system gzips to ~5KB), `defer` every script, and the critical path becomes just the document. Our mobile FCP went 2.3s → 1.7s and TBT 150ms → 20ms from this alone.
+- **A preloader must be opt-in per visit, decided before first paint.** Inline head script checks: first visit + no reduced-motion + connection not 2g/3g/saveData → only then show the gate. And if your own deferred JS arrives later than ~1.5s, bail — covering already-painted content is backwards. On every non-loader path, never hide the headline: LCP = FCP.
+- **Font swap can move nothing.** Define a local fallback (`src: local('Georgia')`) with fontTools-measured `size-adjust` / `ascent-override` / `descent-override` matched to your webfont; the swap becomes invisible and CLS stays 0.000 even on slow connections.
+- **Check inherited caching.** A parent `.htaccess` was silently caching our HTML for a year — updates would never reach returning visitors. Every deployed subfolder gets its own: HTML `no-cache, must-revalidate`, hashed/static assets `max-age=31536000, immutable`, deflate on.
+- **Budget the brand beat.** Desktop 100 across five categories is achievable with all of the above; on mobile, one deliberate ~1s first-visit entrance costs roughly 4-6 performance points. Spend them knowingly or not at all — and give every other path (repeat, slow, reduced-motion) the instant version.
 
 ## Ship gate
 
